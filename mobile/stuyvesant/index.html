@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stuyvesant Lines</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #1c1c1e;
+            --card-hover: #2c2c2e;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color); color: #ffffff;
+            font-family: var(--font-stack); margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .container { max-width: 500px; width: 100%; }
+
+        .header-top { display: flex; align-items: center; margin-bottom: 30px; position: relative; justify-content: center;}
+        .back-btn { position: absolute; left: 0; color: #0a84ff; text-decoration: none; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .header-title { font-size: 1.5em; font-weight: 800; letter-spacing: -0.5px; }
+
+        .category-title {
+            font-size: 0.9em; font-weight: 800; margin-top: 20px; margin-bottom: 12px;
+            text-transform: uppercase; letter-spacing: 1px; color: #8e8e93; padding-left: 5px;
+        }
+
+        .nav-card {
+            display: flex; align-items: center; justify-content: space-between;
+            background-color: var(--card-bg); padding: 18px 20px; border-radius: 16px;
+            text-decoration: none; margin-bottom: 12px; transition: transform 0.2s ease;
+        }
+
+        .nav-card:active { transform: scale(0.97); background-color: var(--card-hover); }
+
+        .bullet-group { display: flex; gap: 5px; align-items: center; }
+        
+        .bullet { display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; border-radius: 50%; width: 28px; height: 28px; font-size: 15px;}
+        .b-1, .b-2, .b-3 { background-color: #EE352E; }
+        .b-4, .b-5, .b-6 { background-color: #00933C; }
+        .b-A, .b-C, .b-E { background-color: #0039A6; }
+        .b-N, .b-Q, .b-R, .b-W { background-color: #FCCC0A; color: black; }
+        .b-J, .b-Z { background-color: #996633; }
+        .b-LIRR { background-color: #0a84ff; width: auto; padding: 0 8px; border-radius: 6px; font-size: 12px; }
+
+        .nav-text { font-size: 1.1em; font-weight: 700; color: #fff; margin-left: 15px; }
+        .arrow-icon { color: #555; font-weight: bold; font-size: 1.4em; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-top">
+            <a href="../../index.html" class="back-btn">‹ Directory</a>
+            <div class="header-title">Stuyvesant HS</div>
+        </div>
+
+        <div class="category-title">Select Your Line</div>
+        
+        <a href="123.html" class="nav-card">
+            <div style="display:flex; align-items:center;">
+                <div class="bullet-group"><div class="bullet b-1">1</div><div class="bullet b-2">2</div><div class="bullet b-3">3</div></div>
+                <span class="nav-text">7 Avenue Line</span>
+            </div><span class="arrow-icon">›</span>
+        </a>
+
+        <a href="456.html" class="nav-card">
+            <div style="display:flex; align-items:center;">
+                <div class="bullet-group"><div class="bullet b-4">4</div><div class="bullet b-5">5</div><div class="bullet b-6">6</div></div>
+                <span class="nav-text">Lexington Ave Line</span>
+            </div><span class="arrow-icon">›</span>
+        </a>
+
+        <a href="ac.html" class="nav-card">
+            <div style="display:flex; align-items:center;">
+                <div class="bullet-group"><div class="bullet b-A">A</div><div class="bullet b-C">C</div></div>
+                <span class="nav-text">8 Avenue Line</span>
+            </div><span class="arrow-icon">›</span>
+        </a>
+
+        <a href="ejzrw.html" class="nav-card">
+            <div style="display:flex; align-items:center;">
+                <div class="bullet-group"><div class="bullet b-E">E</div><div class="bullet b-J">J</div><div class="bullet b-R">R</div></div>
+                <span class="nav-text">Other Subway Lines</span>
+            </div><span class="arrow-icon">›</span>
+        </a>
+
+        <div class="category-title">Commuter Rail</div>
+        
+        <a href="lirr.html" class="nav-card">
+            <div style="display:flex; align-items:center;">
+                <div class="bullet-group"><div class="bullet b-LIRR">LIRR</div></div>
+                <span class="nav-text">Port Washington</span>
+            </div><span class="arrow-icon">›</span>
+        </a>
+    </div>
+
+</body>
+</html>
