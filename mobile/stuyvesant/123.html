@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1/2/3 Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #000000; --card-bg: #1c1c1e; --text-main: #ffffff; --text-dim: #8e8e93;
+            --accent-green: #30d158; --accent-blue: #0a84ff; --accent-warn: #ff9f0a;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: var(--font-stack); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+
+        /* MOBILE HEADER */
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #333; flex-shrink: 0; }
+        .back-btn { color: var(--accent-blue); text-decoration: none; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .header-right { font-family: var(--font-stack); font-weight: 700; font-size: 1.1em; background: linear-gradient(180deg, #FCCC0A, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* SINGLE COLUMN VERTICAL STACK */
+        .board-grid { display: flex; flex-direction: column; gap: 15px; flex-grow: 1; overflow-y: auto; padding-bottom: 20px; }
+
+        .transit-card { background-color: var(--card-bg); border-radius: 14px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: flex-start; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        .transit-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; z-index: 10; }
+
+        /* Line Gradients */
+        .grad-bar-1::before { background: linear-gradient(180deg, #EE352E, #9e231e); }
+        .grad-bar-23::before { background: linear-gradient(180deg, #EE352E, #9e231e); }
+        .grad-bar-ACE::before { background: linear-gradient(180deg, #0039A6, #001f5c); }
+        .grad-bar-RW::before { background: linear-gradient(180deg, #FCCC0A, #b39200); }
+        .grad-bar-JZ::before { background: linear-gradient(180deg, #996633, #5e3f1f); }
+        .grad-bar-green::before { background: linear-gradient(180deg, #30d158, #005c1f); }
+        .grad-bar-EJZ::before { background: linear-gradient(180deg, #0039A6, #996633); }
+        .grad-bar-RW45::before { background: linear-gradient(180deg, #FCCC0A, #00933C); }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .card-header-inline { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 8px; flex-shrink: 0; overflow-x: auto; white-space: nowrap; gap: 10px; }
+        .header-text-group { display: flex; align-items: center; font-size: 1.15em; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0; }
+        .header-icons-group { display: flex; gap: 5px; flex-shrink: 0; }
+        .header-inline-station { margin-right: 8px; }
+        .direction-tag { font-size: 0.7em; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 6px; }
+        .dir-downtown { color: var(--accent-green); } .dir-uptown { color: var(--accent-blue); }
+
+        .vertical-divider { width: 2px; background: linear-gradient(180deg, rgba(123, 44, 191, 0), rgba(123, 44, 191, 1), rgba(224, 170, 255, 1), rgba(123, 44, 191, 1), rgba(123, 44, 191, 0)); margin: 0 15px; opacity: 0.7; flex-shrink: 0; }
+
+        /* SPLIT BODY SCALES PERFECTLY TO FULL WIDTH MOBILE */
+        .split-body { display: flex; width: 100%; overflow: visible; gap: 0; }
+        .split-body-left { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; padding-right: 5px; }
+        .split-body-right { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; padding-left: 5px; overflow: hidden; }
+        .train-main-info { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+        .second-train-row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; min-height: 34px; gap: 15px; }
+        .train-time-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .split-sub-header { font-size: 0.65em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 2px; }
+
+        .next-up-block { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+        .next-up-chips-row { display: flex; gap: 4px; align-items: center; }
+
+        .conn-block { margin-top: 6px; width: 100%; display: flex; flex-direction: column; padding-bottom: 2px; }
+        .conn-label-block { display: block; margin-bottom: 4px; }
+        .conn-chips-row { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; }
+
+        .time-large { font-size: 1.8em; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+        .time-med { font-size: 1.5em; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+        .time-sub { font-size: 0.65em; color: var(--text-dim); font-weight: 500; margin-left: 2px; }
+        .time-warn { color: var(--accent-warn); }
+
+        .conn-label { font-size: 0.65em; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+        
+        .grad-cold { background: linear-gradient(45deg, #5AC8FA, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-blue { background: linear-gradient(90deg, #0a84ff 0%, #0a84ff 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-green { background: linear-gradient(90deg, #30d158 0%, #30d158 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-yellow { background: linear-gradient(90deg, #FCCC0A 0%, #FCCC0A 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-orange { background: linear-gradient(90deg, #FF6319 0%, #FF6319 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-purple { background: linear-gradient(90deg, #B933AD 0%, #B933AD 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-gray { background: linear-gradient(90deg, #808183 0%, #808183 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-following { background: linear-gradient(90deg, #FFD700 0%, #FCCC0A 30%, #FFF8E7 70%, #FFFFFF 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; }
+
+        .chip { background: #333; padding: 2px 8px; border-radius: 6px; display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.85em; flex-shrink: 0; }
+        .chip-time-pos { color: var(--accent-green); } .chip-time-warn { color: #ff9f0a; }
+
+        .bullet { display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; border-radius: 50%; }
+        .b-main { width: 34px; height: 34px; font-size: 18px; } 
+        .b-med { width: 28px; height: 28px; font-size: 15px; }
+        .b-lg { width: 24px; height: 24px; font-size: 13px; opacity: 0.8; }
+        .b-sm { width: 18px; height: 18px; font-size: 10px; }
+        
+        .b-diamond { border-radius: 4px; transform: rotate(45deg); box-shadow: 0 0 2px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; margin: 0 4px; }
+        .b-diamond.b-main { width: 24px; height: 24px; font-size: 16px; }
+        .b-diamond.b-med { width: 20px; height: 20px; font-size: 13px; }
+        .b-diamond.b-lg { width: 17px; height: 17px; font-size: 11px; }
+        .b-diamond.b-sm { width: 12.5px; height: 12.5px; font-size: 9px; }
+        .b-diamond span { transform: rotate(-45deg); display: block; margin-top: 0.5px; margin-left: 0.5px; }
+
+        .b-1, .b-2, .b-3 { background-color: #EE352E; }
+        .b-4, .b-5, .b-6, .b-6X { background-color: #00933C; }
+        .b-A, .b-C, .b-E { background-color: #0039A6; }
+        .b-B, .b-D, .b-F, .b-M, .b-FX { background-color: #FF6319; }
+        .b-N, .b-Q, .b-R, .b-W { background-color: #FCCC0A; color: black !important; }
+        .b-J, .b-Z { background-color: #996633; }
+        .b-7, .b-7X { background-color: #B933AD; }
+        .b-S, .b-GS { background-color: #808183; }
+        .b-SF { background-color: #FF6319; width: auto; padding: 0 6px; border-radius: 4px; font-size: 11px; height: 18px; }
+        
+        .error-msg { color: #ff453a; font-size: 0.85em; font-weight: bold; } .dim { opacity: 0.5; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <a href="index.html" class="back-btn">‹ Lines</a>
+        <div class="header-right" id="clock">00:00 AM</div>
+    </div>
+
+    <div class="board-grid" id="board">
+        <div style="text-align: center; padding: 40px; color: #666;">Initialize System...</div>
+    </div>
+
+<script>
+    const PROXIES = ['', 'https://corsproxy.io/?', 'https://api.codetabs.com/v1/proxy?quest='];
+    
+    const FEEDS = {
+        'ACE': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace',
+        'BDFM': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm',
+        'NQRW': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw',
+        'IRT': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs',
+        'JZ': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz'
+    };
+
+    const RIDE_TIMES = { 'ChambersToAtlantic': 14, 'ChambersToJay': 6, 'ChambersToW4': 6, 'ChambersToTimesSq': 9 };
+    const FERRY_SCHED = ["00:00", "00:30", "01:00", "01:30", "02:00", "02:30", "03:00", "03:30", "04:00", "04:30", "05:00", "05:30", "06:00", "06:30", "06:50", "07:10", "07:30", "07:45", "08:00", "08:15", "08:30", "08:45", "09:00", "09:15", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:20", "16:40", "17:00", "17:15", "17:30", "17:45", "18:00", "18:15", "18:30", "18:45", "19:00", "19:20", "19:40", "20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00", "23:30"];
+
+    // =========================================================================
+    // MOBILE LAYOUT CONFIGURATION: FULL WIDTH, SINGLE COLUMN STACK
+    // Downtown stacked on top, Uptown stacked on bottom. 
+    // =========================================================================
+    const BOARD_ROWS = [
+        { type: 'split_arrival_view', grad: 'grad-bar-1', name: 'Chambers St', displayLines: ['1'], filterLines: ['1'], stopId: '137S', feed: 'IRT', desc: 'South Ferry', dir: 'downtown', connType: 'Ferry', threshold: 6 },
+        { type: 'split_arrival_view', grad: 'grad-bar-23', name: 'Chambers St', displayLines: ['2','3'], filterLines: ['2','3','5'], stopId: '137S', feed: 'IRT', desc: 'Downtown & Bklyn', dir: 'downtown', connType: 'Atlantic', threshold: 6 },
+        { type: 'split_arrival_view', grad: 'grad-bar-1', name: 'Chambers St', displayLines: ['1'], filterLines: ['1'], stopId: '137N', feed: 'IRT', desc: 'Uptown Local', dir: 'uptown', connType: 'TimesSq', threshold: 6 },
+        { type: 'split_arrival_view', grad: 'grad-bar-23', name: 'Chambers St', displayLines: ['2','3'], filterLines: ['2','3','5'], stopId: '137N', feed: 'IRT', desc: 'Uptown Express', dir: 'uptown', connType: 'TimesSq', threshold: 6 }
+    ];
+
+    let globalData = { 'ACE': [], 'BDFM': [], 'NQRW': [], 'IRT': [], 'JZ': [] };
+    let feedStatus = { 'ACE': false, 'BDFM': false, 'NQRW': false, 'IRT': false, 'JZ': false };
+
+    const protoJSON = { "nested": { "transit_realtime": { "nested": { "FeedMessage": { "fields": { "header": { "type": "FeedHeader", "id": 1 }, "entity": { "rule": "repeated", "type": "FeedEntity", "id": 2 } } }, "FeedHeader": { "fields": { "gtfsRealtimeVersion": { "type": "string", "id": 1 }, "incrementality": { "type": "int32", "id": 2 }, "timestamp": { "type": "uint64", "id": 3 } } }, "FeedEntity": { "fields": { "id": { "type": "string", "id": 1 }, "isDeleted": { "type": "bool", "id": 2 }, "tripUpdate": { "type": "TripUpdate", "id": 3 } } }, "TripUpdate": { "fields": { "trip": { "type": "TripDescriptor", "id": 1 }, "stopTimeUpdate": { "rule": "repeated", "type": "StopTimeUpdate", "id": 2 } } }, "TripDescriptor": { "fields": { "tripId": { "type": "string", "id": 1 }, "routeId": { "type": "string", "id": 5 } } }, "StopTimeUpdate": { "fields": { "stopSequence": { "type": "uint32", "id": 1 }, "stopId": { "type": "string", "id": 4 }, "arrival": { "type": "StopTimeEvent", "id": 2 }, "departure": { "type": "StopTimeEvent", "id": 3 } } }, "StopTimeEvent": { "fields": { "delay": { "type": "int32", "id": 1 }, "time": { "type": "int64", "id": 2 }, "uncertainty": { "type": "int32", "id": 3 } } } } } } };
+
+    async function fetchWithProxy(url) {
+        for (let proxy of PROXIES) {
+            try {
+                let targetUrl = proxy ? proxy + (proxy.includes('corsproxy') ? encodeURIComponent(url) : url) : url;
+                const response = await fetch(targetUrl, { cache: 'no-store' });
+                if (response.ok) return await response.arrayBuffer();
+            } catch (e) {}
+        }
+        throw new Error("All network paths blocked");
+    }
+
+    function minsToTime(totalMins) {
+        let h = Math.floor(totalMins / 60); let m = totalMins % 60; let ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12; h = h ? h : 12; return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
+
+    async function init() {
+        const root = protobuf.Root.fromJSON(protoJSON);
+        const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+        await fetchAllFeeds(FeedMessage);
+        renderBoard();
+        setInterval(async () => { await fetchAllFeeds(FeedMessage); renderBoard(); }, 15000);
+    }
+
+    async function fetchAllFeeds(FeedMessage) {
+        const promises = Object.keys(FEEDS).map(async (key) => {
+            try {
+                const buffer = await fetchWithProxy(FEEDS[key] + '?t=' + Date.now());
+                const message = FeedMessage.decode(new Uint8Array(buffer));
+                globalData[key] = FeedMessage.toObject(message, { longs: String }).entity.filter(e => e.tripUpdate).map(e => e.tripUpdate);
+                feedStatus[key] = true;
+            } catch (err) { feedStatus[key] = false; }
+        });
+        await Promise.all(promises);
+    }
+
+    function getArrivals(feedKeys, stopId, filterRoutes) {
+        if (!Array.isArray(feedKeys)) feedKeys = [feedKeys];
+        let arrivals = []; let seenTrips = new Set(); const now = Date.now() / 1000;
+        feedKeys.forEach(feedKey => {
+            if (!feedStatus[feedKey]) return;
+            globalData[feedKey].forEach(trip => {
+                const route = trip.trip.routeId;
+                if (filterRoutes && !filterRoutes.includes(route)) return;
+                if (trip.stopTimeUpdate) {
+                    trip.stopTimeUpdate.forEach(stu => {
+                        if (stu.stopId === stopId) {
+                            let time = stu.arrival?.time ? parseInt(stu.arrival.time) : (stu.departure?.time ? parseInt(stu.departure.time) : null);
+                            if (time && time > now) {
+                                if (!seenTrips.has(trip.trip.tripId)) {
+                                    seenTrips.add(trip.trip.tripId);
+                                    arrivals.push({ route: route, time: time, minutes: Math.floor((time - now) / 60), tripId: trip.trip.tripId });
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        return arrivals.sort((a, b) => a.time - b.time);
+    }
+
+    function getHubArrivalTime(feedKey, tripId, hubStopId) {
+        const trip = globalData[feedKey].find(t => t.trip.tripId === tripId);
+        if (trip && trip.stopTimeUpdate) {
+            const stopUpdate = trip.stopTimeUpdate.find(s => s.stopId === hubStopId);
+            if (stopUpdate && stopUpdate.arrival) return parseInt(stopUpdate.arrival.time);
+        }
+        return null;
+    }
+
+    function getScheduleConnection(hubArrivalTime, scheduleData, typeLabel, bufferMins) {
+        const day = new Date().getDay();
+        if (day === 0 || day === 6) return [{ route: typeLabel, time: 'No Service', wait: 0, rawWait: 999, isError: true }];
+        const arrivalMins = new Date(hubArrivalTime * 1000).getHours() * 60 + new Date(hubArrivalTime * 1000).getMinutes();
+        const minDeparture = arrivalMins + bufferMins; 
+        let connections = [];
+        for (let item of scheduleData) {
+            let tStr = typeof item === 'string' ? item : item.t;
+            const [h, m] = tStr.split(':').map(Number); const schedMins = h * 60 + m;
+            if (schedMins > minDeparture) {
+                let wait = schedMins - arrivalMins;
+                connections.push({ route: typeLabel, time: `${minsToTime(schedMins)} (+${wait}m)`, wait: wait, isSchedule: true });
+                if (connections.length >= 2) break;
+            }
+        }
+        return connections.length ? connections : [{ route: typeLabel, time: 'No connections', wait: 0, isError: true }];
+    }
+
+    function findTrainsForRoute(feedKey, stopId, route, cutoffTime) {
+        if (!feedStatus[feedKey]) return [];
+        let candidates = [];
+        globalData[feedKey].forEach(trip => {
+            if (trip.trip.routeId !== route) return;
+            if (trip.stopTimeUpdate && trip.stopTimeUpdate.length > 0) {
+                const lastStop = trip.stopTimeUpdate[trip.stopTimeUpdate.length - 1].stopId;
+                trip.stopTimeUpdate.forEach(stu => {
+                    if (stu.stopId === stopId && stu.departure?.time) {
+                        const depTime = parseInt(stu.departure.time);
+                        if (depTime > cutoffTime) {
+                            candidates.push({ route: route, time: depTime, wait: Math.floor((depTime - cutoffTime) / 60) + 1, destId: lastStop, tripId: trip.trip.tripId });
+                        }
+                    }
+                });
+            }
+        });
+        candidates.sort((a, b) => a.time - b.time);
+        return candidates;
+    }
+
+    function findNextForRoute(feedKey, stopId, route, cutoffTime) {
+        const trains = findTrainsForRoute(feedKey, stopId, route, cutoffTime); return trains.length > 0 ? trains[0] : null;
+    }
+
+    function getComplexConnections(type, arrivalTimeUnix) {
+        let conns = [];
+        if (type === 'Atlantic') {
+            const arr = arrivalTimeUnix + (RIDE_TIMES.ChambersToAtlantic * 60);
+            ['B','Q','D','N','R'].forEach(r => {
+                let t = findNextForRoute((r==='B'||r==='D') ? 'BDFM' : 'NQRW', (r==='B'||r==='Q') ? 'D24S' : 'R31S', r, arr + 60); if(t) conns.push(t);
+            });
+        } else if (type === 'W4') {
+            const arr = arrivalTimeUnix + (RIDE_TIMES.ChambersToW4 * 60);
+            ['B','D','F','M','FX'].forEach(rt => {
+                const t = findNextForRoute('BDFM', 'D20N', rt, arr + 60); if(t) conns.push(t);
+            });
+        } else if (type === 'TimesSq') {
+            const arr = arrivalTimeUnix + (RIDE_TIMES.ChambersToTimesSq * 60);
+            const seven = findNextForRoute('IRT', '725N', '7', arr + 60); if (seven) conns.push(seven);
+            const sevenX = findNextForRoute('IRT', '725N', '7X', arr + 60); if (sevenX) conns.push(sevenX);
+            const one = findNextForRoute('IRT', '127N', '1', arr + 60); if (one) conns.push(one);
+            const sN = findNextForRoute('IRT', '902N', 'GS', arr + 60); const sS = findNextForRoute('IRT', '902S', 'GS', arr + 60);
+            if (sN && sS) { conns.push(sN.time < sS.time ? sN : sS); } else if (sN) { conns.push(sN); } else if (sS) { conns.push(sS); }
+            ['N','Q','R','W'].forEach(rt => { const t = findNextForRoute('NQRW', 'R16N', rt, arr + 60); if (t) conns.push(t); });
+        } else if (type === 'JaySt') {
+            const arr = arrivalTimeUnix + (RIDE_TIMES.ChambersToJay * 60);
+            const fTrains = findTrainsForRoute('BDFM', 'A41S', 'F', arr + 60);
+            let addedConey = false; let addedOther = false;
+            fTrains.forEach(f => {
+                let isConey = (f.destId === 'X25S' || f.destId === 'D43S');
+                let map = {'X25S':'Coney Is', 'D43S':'Coney Is', 'F27S':'Church Av', 'F35S':'Kings Hwy', 'F32S':'Bay Pkwy', 'F30S':'18 Av'};
+                if (isConey && !addedConey) { f.destText = 'Coney Is'; conns.push(f); addedConey = true; } else if (!isConey && !addedOther) { f.destText = map[f.destId] || 'Bklyn'; conns.push(f); addedOther = true; }
+            });
+            const fx = findNextForRoute('BDFM', 'A41S', 'FX', arr + 60); if(fx) conns.push(fx);
+            const r = findNextForRoute('NQRW', 'R29S', 'R', arr + 60); if(r) conns.push(r);
+        }
+
+        conns.forEach(c => {
+            let hubArr = arrivalTimeUnix + (RIDE_TIMES['ChambersTo' + (type === 'W4' ? 'W4' : (type==='JaySt'?'Jay':(type==='TimesSq'?'TimesSq':'Atlantic')))] * 60);
+            c.wait = Math.floor((c.time - hubArr) / 60);
+        });
+        return conns.sort((a, b) => a.time - b.time);
+    }
+
+    function getBulletHTML(route, sizeClass) {
+        if (route === 'FX') return `<div class="bullet ${sizeClass} b-diamond b-F"><span>F</span></div>`;
+        if (route === '6X') return `<div class="bullet ${sizeClass} b-diamond b-6"><span>6</span></div>`;
+        if (route === '7X') return `<div class="bullet ${sizeClass} b-diamond b-7"><span>7</span></div>`;
+        if (route === 'GS') return `<div class="bullet ${sizeClass} b-S">S</div>`;
+        return `<div class="bullet ${sizeClass} b-${route}">${route}</div>`;
+    }
+
+    function getLineColorClass(lines) {
+        if (!lines) return 'grad-cold'; const s = new Set(Array.isArray(lines) ? lines : [lines]);
+        if (s.has('1') || s.has('2') || s.has('3') || s.has('A') || s.has('C') || s.has('E')) return 'grad-text-blue';
+        if (s.has('4') || s.has('5') || s.has('6') || s.has('6X')) return 'grad-text-green';
+        if (s.has('N') || s.has('Q') || s.has('R') || s.has('W')) return 'grad-text-yellow';
+        if (s.has('B') || s.has('D') || s.has('F') || s.has('M') || s.has('FX')) return 'grad-text-orange';
+        if (s.has('J') || s.has('Z')) return 'grad-text-brown';
+        if (s.has('7') || s.has('7X')) return 'grad-text-purple';
+        if (s.has('GS') || s.has('S') || s.has('L')) return 'grad-text-gray';
+        return 'grad-cold';
+    }
+
+    function getConnectionsHTMLBlock(train, cfg) {
+        if (cfg.connType === 'None') return '';
+        let conns = [], label = ""; let gradClass = getLineColorClass(cfg.displayLines || cfg.lines);
+
+        if (cfg.connType === 'Ferry') {
+            label = "Connections To St George"; conns = getScheduleConnection(getHubArrivalTime('IRT', train.tripId, '142S') || (train.time + 300), FERRY_SCHED, 'SF', 0);
+        } else if (cfg.connType === 'Atlantic') {
+            label = "South Brooklyn Transfers @ Atlantic Av"; conns = getComplexConnections('Atlantic', train.time);
+        } else if (cfg.connType === 'JaySt') {
+            label = "South Brooklyn Transfers @ Jay St"; conns = getComplexConnections('JaySt', train.time);
+        } else if (cfg.connType === 'W4') {
+            label = "Uptown Transfers @ W 4 St"; conns = getComplexConnections('W4', train.time);
+        } else if (cfg.connType === 'TimesSq') {
+            label = "Uptown Transfers @ Times Square"; conns = getComplexConnections('TimesSq', train.time);
+        }
+
+        let html = `<div class="conn-block"><span class="conn-label ${gradClass} conn-label-block">${label}</span>`;
+        if (conns.length > 0 && !conns[0].isError) {
+            let renderChips = (chipArray) => {
+                let rHtml = `<div class="conn-chips-row no-scrollbar" style="margin-bottom: 4px;">`;
+                chipArray.forEach(c => {
+                    if (!c.isError) {
+                        let timeDisplay = c.isSchedule ? `${c.time}` : `<span class="${c.wait < 3 ? 'chip-time-warn' : 'chip-time-pos'}">+${c.wait}m</span>`;
+                        if (c.route === 'F' && c.destText) timeDisplay += `<span style="margin-left: 2px;">: ${c.destText}</span>`;
+                        let bullet = (c.route === 'PW' || c.route === 'SF') ? '' : getBulletHTML(c.route, 'b-sm');
+                        if (c.route === 'SF') bullet = `<div class="bullet b-sm b-SF">Ferry</div>`;
+                        rHtml += `<div class="chip">${bullet}<span style="font-size:0.8em">${timeDisplay}</span></div>`;
+                    }
+                });
+                return rHtml + `</div>`;
+            };
+
+            if (cfg.connType === 'TimesSq') {
+                let topConns = conns.filter(c => ['7', '7X', '1', 'GS'].includes(c.route));
+                let botConns = conns.filter(c => ['N', 'Q', 'R', 'W'].includes(c.route));
+                if (topConns.length > 0) html += renderChips(topConns);
+                if (botConns.length > 0) html += renderChips(botConns);
+            } else { html += renderChips(conns); }
+        } else { html += `<span class="dim" style="font-size:0.7em">No connections shown</span>`; }
+        return html + `</div>`;
+    }
+
+    function renderNextUpBlock(arrivals) {
+        let html = `<div class="next-up-block"><span class="conn-label grad-following" style="font-size: 0.6em; margin-bottom:3px;">NEXT UP</span><div class="next-up-chips-row">`;
+        arrivals.forEach(n => html += `<div class="chip" style="padding:2px 6px;">${getBulletHTML(n.route, 'b-sm')}<span class="next-time">${n.minutes}m</span></div>`);
+        return html + `</div></div>`;
+    }
+
+    function renderInlineHeader(cfg) {
+        let dirIcon = cfg.dir === 'downtown' ? '↓' : '↑'; let dirClass = cfg.dir === 'downtown' ? 'dir-downtown' : 'dir-uptown';
+        let icons = (cfg.displayLines || []).map(l => getBulletHTML(l, 'b-lg')).join('');
+        return `<div class="card-header-inline no-scrollbar"><div class="header-text-group"><span class="header-inline-station">${cfg.name}</span>${cfg.desc ? `<span class="direction-tag ${dirClass}" style="margin-left: 6px;">${dirIcon} ${cfg.desc}</span>` : ''}</div><div class="header-icons-group">${icons}</div></div>`;
+    }
+
+    // THE FULL WIDTH SPLIT RENDERER
+    function renderNextSecondSplit(cfg) {
+        const card = document.createElement('div'); card.className = `transit-card ${cfg.grad}`;
+        let html = renderInlineHeader(cfg);
+        let isFeedDown = Array.isArray(cfg.feed) ? cfg.feed.every(f => !feedStatus[f]) : !feedStatus[cfg.feed];
+        let arrivals = getArrivals(cfg.feed, cfg.stopId, cfg.filterLines).filter(t => t.minutes >= cfg.threshold);
+        
+        if (isFeedDown) { html += `<div class="dim error-msg" style="margin-top:15px;">⚠️ Feed Offline</div>`; } 
+        else if (arrivals.length === 0) { html += `<div class="dim" style="margin-top:15px;">No upcoming trains</div>`; } 
+        else {
+            const first = arrivals[0]; const second = arrivals.length > 1 ? arrivals[1] : null; const nextUp = arrivals.slice(2, 4);
+            html += `<div class="split-body"><div class="split-body-left"><div class="split-sub-header">NEXT TRAIN</div>`;
+            let timeHTML1 = first.minutes === cfg.threshold ? `<span class="time-large time-warn">${first.minutes}</span> <span class="time-sub time-warn">min</span>` : `<span class="time-large">${first.minutes}</span> <span class="time-sub">min</span>`;
+            html += `<div class="train-main-info">${getBulletHTML(first.route, 'b-main')}${timeHTML1}</div>${getConnectionsHTMLBlock(first, cfg)}</div><div class="vertical-divider"></div><div class="split-body-right"><div class="split-sub-header">SECOND TRAIN</div>`;
+            
+            if (second) {
+                let timeHTML2 = second.minutes === cfg.threshold ? `<span class="time-med time-warn">${second.minutes}</span> <span class="time-sub time-warn">min</span>` : `<span class="time-med">${second.minutes}</span> <span class="time-sub">min</span>`;
+                html += `<div class="second-train-row"><div class="train-time-group">${getBulletHTML(second.route, 'b-med')}${timeHTML2}</div>${nextUp.length > 0 ? renderNextUpBlock(nextUp) : ''}</div>${getConnectionsHTMLBlock(second, cfg)}`;
+            } else { html += `<div class="dim" style="font-size:0.8em">--</div>`; }
+            html += `</div></div>`; 
+        }
+        card.innerHTML = html; return card;
+    }
+
+    function renderBoard() {
+        const container = document.getElementById('board'); container.innerHTML = ''; 
+        // Single flat loop for the mobile single-column grid
+        BOARD_ROWS.forEach(cfg => {
+            container.appendChild(renderNextSecondSplit(cfg));
+        });
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000); updateClock(); init();
+</script>
+</body>
+</html>
