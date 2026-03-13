@@ -29,11 +29,27 @@
         }
 
         .header-title {
-            font-size: 2em;
+            font-size: 2.2em;
             font-weight: 800;
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 5px;
             letter-spacing: -0.5px;
+            /* Transit Dispatch Gold Gradient */
+            background: linear-gradient(45deg, #FFD700 0%, #FCCC0A 20%, #ffffff 70%);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-subtitle {
+            font-size: 1.1em;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 40px;
+            font-style: italic;
+            /* STUA Purple Gradient */
+            background: linear-gradient(90deg, #E0AAFF, #ffffff);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
         }
 
         .category-title {
@@ -89,27 +105,46 @@
 
     <div class="container">
         <div class="header-title">Transit Directory</div>
+        <div class="header-subtitle">Stay on Schedule</div>
 
-        <!-- HOMES SECTION -->
-        <div class="category-title">Homes</div>
+        <!-- RESIDENCES SECTION -->
+        <div class="category-title">Residences</div>
         
-        <!-- Replace href="#" with your local station's file later -->
         <a href="stillwell.html" class="nav-card">
             <span class="nav-text">acelalocaltrain & greedlazor</span>
             <span class="arrow-icon">›</span>
         </a>
 
+        <a href="#" class="nav-card">
+            <span class="nav-text">Home1</span>
+            <span class="arrow-icon">›</span>
+        </a>
+
+        <a href="#" class="nav-card">
+            <span class="nav-text">Home2</span>
+            <span class="arrow-icon">›</span>
+        </a>
+
+
         <!-- PLACES OF INTEREST SECTION -->
         <div class="category-title">Places of Interest</div>
         
-        <!-- Make sure the board file is named stuyvesant.html in your GitHub repo -->
         <a href="stuyvesant.html" class="nav-card">
             <span class="nav-text">Stuyvesant HS</span>
+            <span class="arrow-icon">›</span>
+        </a>
+
+        <a href="#" class="nav-card">
+            <span class="nav-text">Place1</span>
+            <span class="arrow-icon">›</span>
+        </a>
+
+        <a href="#" class="nav-card">
+            <span class="nav-text">Place2</span>
             <span class="arrow-icon">›</span>
         </a>
 
     </div>
 
 </body>
-
 </html>
