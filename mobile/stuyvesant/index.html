@@ -22,7 +22,12 @@
 
         .header-top { display: flex; align-items: center; margin-bottom: 30px; position: relative; justify-content: center;}
         .back-btn { position: absolute; left: 0; color: #0a84ff; text-decoration: none; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 4px; }
-        .header-title { font-size: 1.5em; font-weight: 800; letter-spacing: -0.5px; }
+        
+        .header-title { font-size: 1.5em; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; }
+        .header-purple-grad {
+            background: linear-gradient(90deg, #E0AAFF, #ffffff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
 
         .category-title {
             font-size: 0.9em; font-weight: 800; margin-top: 20px; margin-bottom: 12px;
@@ -46,6 +51,7 @@
         .b-N, .b-Q, .b-R, .b-W { background-color: #FCCC0A; color: black; }
         .b-J, .b-Z { background-color: #996633; }
         .b-LIRR { background-color: #0a84ff; width: auto; padding: 0 8px; border-radius: 6px; font-size: 12px; }
+        .b-citibike { background-color: #0039A6; width: auto; padding: 0 8px; border-radius: 6px; font-size: 12px; }
 
         .nav-text { font-size: 1.1em; font-weight: 700; color: #fff; margin-left: 15px; }
         .arrow-icon { color: #555; font-weight: bold; font-size: 1.4em; }
@@ -55,8 +61,8 @@
 
     <div class="container">
         <div class="header-top">
-            <a href="../../index.html" class="back-btn">‹ Directory</a>
-            <div class="header-title">Stuyvesant HS</div>
+            <a href="../index.html" class="back-btn">‹ Directory</a>
+            <div class="header-title header-purple-grad">Stuyvesant HS</div>
         </div>
 
         <div class="category-title">Select Your Line</div>
@@ -95,6 +101,15 @@
             <div style="display:flex; align-items:center;">
                 <div class="bullet-group"><div class="bullet b-LIRR">LIRR</div></div>
                 <span class="nav-text">Port Washington</span>
+            </div><span class="arrow-icon">›</span>
+        </a>
+
+        <div class="category-title">Bike Share</div>
+        
+        <a href="citibike.html" class="nav-card">
+            <div style="display:flex; align-items:center;">
+                <div class="bullet-group"><div class="bullet b-citibike">🚲</div></div>
+                <span class="nav-text">Citi Bike Docks</span>
             </div><span class="arrow-icon">›</span>
         </a>
     </div>
