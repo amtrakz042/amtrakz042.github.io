@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citi Bike Tracker</title>
+    <style>
+        :root {
+            --bg-color: #000000; --card-bg: #1c1c1e; --text-main: #ffffff; --text-dim: #8e8e93;
+            --accent-green: #30d158; --accent-blue: #0a84ff; --accent-warn: #ff9f0a; --accent-red: #ff453a;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: var(--font-stack); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+
+        /* MOBILE HEADER */
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #333; flex-shrink: 0; }
+        .back-btn { color: var(--accent-blue); text-decoration: none; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .header-right { font-family: var(--font-stack); font-weight: 700; font-size: 1.1em; background: linear-gradient(180deg, #FCCC0A, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* SINGLE COLUMN VERTICAL STACK */
+        .board-grid { display: flex; flex-direction: column; gap: 15px; flex-grow: 1; overflow-y: auto; padding-bottom: 20px; }
+
+        .transit-card { background-color: var(--card-bg); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: flex-start; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        .transit-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; z-index: 10; }
+
+        /* Citi Bike Gradient */
+        .grad-bar-citibike::before { background: linear-gradient(180deg, #0039A6, #5AC8FA); }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .card-header-inline { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 6px; flex-shrink: 0; overflow-x: auto; white-space: nowrap; gap: 10px; }
+        .header-text-group { display: flex; align-items: center; font-size: 1.15em; font-weight: 800; color: #fff; white-space: nowrap; flex-shrink: 0; letter-spacing: -0.2px;}
+        .header-icons-group { display: flex; gap: 5px; flex-shrink: 0; }
+        .direction-tag { font-size: 0.7em; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); }
+
+        .train-main-info { display: flex; align-items: baseline; gap: 4px; margin: 10px 0; }
+
+        .time-large { font-size: 2.2em; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+        .time-sub { font-size: 1em; color: var(--text-dim); font-weight: 700; margin-left: 2px; }
+        
+        .warn-text { color: var(--accent-warn); }
+        .red-text { color: var(--accent-red); }
+
+        .chip { background: #333; padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.9em; flex-shrink: 0; }
+        .chip-ebike { background: linear-gradient(90deg, #0039A6, #0a84ff); color: white; box-shadow: 0 2px 4px rgba(0, 132, 255, 0.3); border: 1px solid #5AC8FA;}
+        .chip-none { background: #2c2c2e; color: #8e8e93; }
+
+        .bullet { display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; border-radius: 50%; }
+        .b-citibike { background-color: #0039A6; padding: 0 8px; border-radius: 6px; font-size: 12px; height: 22px; width: auto; letter-spacing: 0.5px;}
+
+        .dock-info { font-size: 0.85em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-top: 5px; border-top: 1px solid #333; padding-top: 10px;}
+
+        .error-msg { color: #ff453a; font-size: 0.85em; font-weight: bold; } .dim { opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <a href="index.html" class="back-btn">‹ Lines</a>
+        <div class="header-right" id="clock">00:00 AM</div>
+    </div>
+
+    <div class="board-grid" id="board">
+        <div style="text-align: center; padding: 40px; color: #666;">Locating Docks...</div>
+    </div>
+
+<script>
+    // Citi Bike GBFS Endpoints (Universal English Paths)
+    const INFO_URL = 'https://gbfs.citibikenyc.com/gbfs/en/station_information.json';
+    const STATUS_URL = 'https://gbfs.citibikenyc.com/gbfs/en/station_status.json';
+
+    // The exact station names we want to track
+    const DOCK_CONFIG = [
+        { name: "River Terrace & Warren St", desc: "Rockefeller Park" },
+        { name: "Murray St & West St", desc: "Near Shake Shack & Whole Foods" },
+        { name: "Murray St & Greenwich St", desc: "Near Chipotle & Whole Foods" },
+        { name: "Warren St & W Broadway", desc: "Transfer to A/C @ Chambers St" }
+    ];
+
+    let internalStationMap = {}; // Maps CitiBike's internal UUIDs to our friendly configs
+    let systemInitialized = false;
+
+    async function fetchWithProxy(url) {
+        // 1. Try direct connection first (Citi Bike allows CORS natively!)
+        try {
+            const response = await fetch(url, { cache: 'no-store' });
+            if (response.ok) {
+                const json = await response.json();
+                if (json && json.data) return json;
+            }
+        } catch (e) {
+            console.warn("Direct fetch failed, falling back to proxies...", e);
+        }
+
+        // 2. Fallback to robust proxies if the browser blocks the direct fetch
+        const PROXIES = ['https://corsproxy.org/?', 'https://api.codetabs.com/v1/proxy?quest='];
+        for (let proxy of PROXIES) {
+            try {
+                let targetUrl = proxy + encodeURIComponent(url);
+                const response = await fetch(targetUrl, { cache: 'no-store' });
+                if (response.ok) {
+                    const json = await response.json();
+                    if (json && json.data) return json; // Validates we didn't just get an HTML captcha page
+                }
+            } catch (e) {}
+        }
+        throw new Error("All network paths blocked");
+    }
+
+    // Step 1: Find the Internal IDs for our docks
+    async function initializeSystem() {
+        try {
+            const infoJson = await fetchWithProxy(INFO_URL);
+            
+            infoJson.data.stations.forEach(station => {
+                // Exact string match (ignoring case)
+                let match = DOCK_CONFIG.find(cfg => station.name.toLowerCase() === cfg.name.toLowerCase());
+                if (match) {
+                    internalStationMap[station.station_id] = {
+                        name: match.name,
+                        desc: match.desc,
+                        capacity: station.capacity
+                    };
+                }
+            });
+            
+            if (Object.keys(internalStationMap).length === 0) {
+                document.getElementById('board').innerHTML = `<div class="transit-card grad-bar-citibike"><div class="dim" style="padding: 20px; text-align: center;">No matching docks found in the live database. Double check your street spelling!</div></div>`;
+                return;
+            }
+
+            systemInitialized = true;
+            updateStatus();
+            setInterval(updateStatus, 30000); // Ping live bikes every 30 seconds
+        } catch (err) {
+            console.error(err);
+            document.getElementById('board').innerHTML = `<div class="transit-card grad-bar-citibike"><div class="error-msg" style="padding: 20px; text-align: center;">⚠️ Failed to connect to Citi Bike Network</div></div>`;
+        }
+    }
+
+    // Step 2: Fetch the live status of the bikes
+    async function updateStatus() {
+        if (!systemInitialized) return;
+        
+        try {
+            const statusJson = await fetchWithProxy(STATUS_URL);
+            let activeDocks = [];
+
+            statusJson.data.stations.forEach(station => {
+                if (internalStationMap[station.station_id]) {
+                    activeDocks.push({
+                        ...internalStationMap[station.station_id],
+                        bikes: station.num_bikes_available,
+                        ebikes: station.num_ebikes_available || 0,
+                        docks: station.num_docks_available,
+                        isRenting: station.is_renting
+                    });
+                }
+            });
+
+            // Sort them to keep the order consistent with the config
+            activeDocks.sort((a, b) => {
+                let idxA = DOCK_CONFIG.findIndex(cfg => cfg.name === a.name);
+                let idxB = DOCK_CONFIG.findIndex(cfg => cfg.name === b.name);
+                return idxA - idxB;
+            });
+
+            renderBoard(activeDocks);
+        } catch (err) {
+            console.error("Live status fetch failed", err);
+        }
+    }
+
+    function renderBoard(docks) {
+        const container = document.getElementById('board'); 
+        container.innerHTML = ''; 
+
+        docks.forEach(dock => {
+            const card = document.createElement('div'); 
+            card.className = `transit-card grad-bar-citibike`;
+            
+            // Header
+            let html = `<div class="card-header-inline no-scrollbar">
+                            <div class="header-text-group">${dock.name}</div>
+                            <div class="header-icons-group"><div class="bullet b-citibike">🚲</div></div>
+                        </div>`;
+            
+            if (dock.desc) {
+                html += `<div class="direction-tag">${dock.desc}</div>`;
+            }
+
+            if (dock.isRenting === 0) {
+                html += `<div class="dim error-msg" style="margin-top:15px;">Station Offline / Suspended</div>`;
+            } else {
+                // Color Code the Available Bikes
+                let bikeColorClass = "";
+                if (dock.bikes === 0) bikeColorClass = "red-text";
+                else if (dock.bikes <= 3) bikeColorClass = "warn-text";
+
+                // Format the E-Bike Chip
+                let ebikeHtml = "";
+                if (dock.ebikes > 0) {
+                    ebikeHtml = `<div class="chip chip-ebike">⚡ ${dock.ebikes} E-Bike${dock.ebikes > 1 ? 's' : ''}</div>`;
+                } else {
+                    ebikeHtml = `<div class="chip chip-none">No E-Bikes</div>`;
+                }
+
+                // Color Code the Empty Docks
+                let dockColorClass = dock.docks === 0 ? "red-text" : "";
+
+                html += `
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                        <div class="train-main-info ${bikeColorClass}">
+                            <span class="time-large">${dock.bikes}</span>
+                            <span class="time-sub">/ ${dock.capacity} Bikes</span>
+                        </div>
+                        <div class="next-up-block">
+                            ${ebikeHtml}
+                        </div>
+                    </div>
+                    <div class="dock-info ${dockColorClass}">
+                        ${dock.docks} Empty Docks
+                    </div>
+                `;
+            }
+
+            card.innerHTML = html; 
+            container.appendChild(card);
+        });
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: true });
+    }
+    
+    setInterval(updateClock, 1000); updateClock(); initializeSystem();
+</script>
+</body>
+</html>
