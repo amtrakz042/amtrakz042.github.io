@@ -45,6 +45,7 @@
         .chip { background: #333; padding: 4px 10px; border-radius: 8px; display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.9em; flex-shrink: 0; }
         .chip-ebike { background: linear-gradient(90deg, #0039A6, #0a84ff); color: white; box-shadow: 0 2px 4px rgba(0, 132, 255, 0.3); border: 1px solid #5AC8FA;}
         .chip-none { background: #2c2c2e; color: #8e8e93; }
+        .chip-classic { background: #3a3a3c; color: #ffffff; border: 1px solid #48484a; }
 
         .bullet { display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; border-radius: 50%; }
         .b-citibike { background-color: #0039A6; padding: 0 8px; border-radius: 6px; font-size: 12px; height: 22px; width: auto; letter-spacing: 0.5px;}
@@ -73,9 +74,9 @@
     // The exact station names we want to track
     const DOCK_CONFIG = [
         { name: "River Ter & Warren St", desc: "Rockefeller Park" },
-        { name: "Murray St & West St", desc: "Near Shake Shack & Whole Foods" },
-        { name: "Murray St & Greenwich St", desc: "Near Chipotle & Whole Foods" },
-        { name: "Warren St & W Broadway", desc: "Transfer to A/C @ Chambers St" }
+        { name: "Murray St & West St", desc: "Goldman Sachs" },
+        { name: "Murray St & Greenwich St", desc: "Tribeca" },
+        { name: "Warren St & W Broadway", desc: "Xfers to A/C Chambers St" }
     ];
 
     let internalStationMap = {}; // Maps CitiBike's internal UUIDs to our friendly configs
@@ -198,6 +199,10 @@
                 if (dock.bikes === 0) bikeColorClass = "red-text";
                 else if (dock.bikes <= 3) bikeColorClass = "warn-text";
 
+                // Calculate Classic Bikes
+                let classicBikes = Math.max(0, dock.bikes - dock.ebikes);
+                let classicHtml = `<div class="chip chip-classic">${classicBikes} Classic${classicBikes !== 1 ? 's' : ''}</div>`;
+
                 // Format the E-Bike Chip
                 let ebikeHtml = "";
                 if (dock.ebikes > 0) {
@@ -215,7 +220,8 @@
                             <span class="time-large">${dock.bikes}</span>
                             <span class="time-sub">/ ${dock.capacity} Bikes</span>
                         </div>
-                        <div class="next-up-block">
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                            ${classicHtml}
                             ${ebikeHtml}
                         </div>
                     </div>
