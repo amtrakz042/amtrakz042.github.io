@@ -2,116 +2,282 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIRR Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LIRR Departures | NY Penn</title>
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
     <style>
         :root {
-            --bg-color: #000000; --card-bg: #1c1c1e; --text-main: #ffffff; --text-dim: #8e8e93;
-            --accent-green: #30d158; --accent-blue: #0a84ff; --accent-warn: #ff9f0a;
+            --bg-color: #000000; 
+            --card-bg: #1c1c1e; 
+            --text-main: #ffffff; 
+            --text-dim: #8e8e93;
             --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
-        body { background-color: var(--bg-color); color: var(--text-main); font-family: var(--font-stack); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: var(--font-stack); 
+            margin: 0; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            box-sizing: border-box; 
+        }
 
-        /* MOBILE HEADER */
-        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #333; flex-shrink: 0; }
-        .back-btn { color: var(--accent-blue); text-decoration: none; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 4px; }
-        .header-right { font-family: var(--font-stack); font-weight: 700; font-size: 1.1em; background: linear-gradient(180deg, #FCCC0A, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
 
-        /* SINGLE COLUMN VERTICAL STACK */
-        .board-grid { display: flex; flex-direction: column; gap: 15px; flex-grow: 1; overflow-y: auto; padding-bottom: 20px; }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
 
-        .transit-card { background-color: var(--card-bg); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: flex-start; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
-        .transit-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; z-index: 10; }
+        .clock {
+            font-size: 16px;
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+        }
 
-        /* Line Gradients */
-        .grad-bar-LIRR::before { background: linear-gradient(180deg, #0a84ff, #004e9e); }
+        #board {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
 
-        .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .departure-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 6px solid #4D5357; /* Default color */
+        }
 
-        .card-header-inline { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 10px; flex-shrink: 0; overflow-x: auto; white-space: nowrap; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        .header-text-group { display: flex; align-items: center; font-size: 1.3em; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0; }
-        .header-icons-group { display: flex; gap: 5px; flex-shrink: 0; }
-        .header-inline-station { margin-right: 8px; }
+        .departure-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
 
-        .bullet { display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; border-radius: 50%; }
-        .b-LIRR { background-color: #0a84ff; padding: 0 8px; border-radius: 6px; font-size: 12px; height: 20px; width: auto; letter-spacing: 0.5px;}
+        .dest-name {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .branch-tag {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .departure-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .dep-time {
+            font-size: 22px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .track-info {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ff9f0a; /* Warning orange for TBD */
+            background: rgba(255, 159, 10, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
         
-        .tag-lirr { border-radius: 4px; padding: 2px 6px; font-size: 9px; font-weight: bold; color: white; margin-right: 4px; text-transform: uppercase; }
-        .tag-exp { background-color: #EE352E; } .tag-lcl { background-color: #0039A6; } 
+        .track-assigned {
+            color: #30d158; /* Green for assigned */
+            background: rgba(48, 209, 88, 0.15);
+        }
 
+        .status-msg {
+            text-align: center;
+            color: var(--text-dim);
+            margin-top: 20px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header-container">
-        <a href="index.html" class="back-btn">‹ Lines</a>
-        <div class="header-right" id="clock">00:00 AM</div>
+    <div class="header">
+        <h1>NY Penn Departures</h1>
+        <div class="clock" id="clock">--:--:--</div>
     </div>
 
-    <div class="board-grid" id="board">
+    <div id="board">
+        <div class="status-msg">Fetching live MTA data...</div>
     </div>
 
 <script>
-    const LIRR_PW_SCHED = [{t:"00:27", k:"ALL STOPS"}, {t:"03:17", k:"ALL STOPS"}, {t:"05:19", k:"ALL STOPS"}, {t:"06:55", k:"ALL STOPS"}, {t:"08:17", k:"ALL STOPS"}, {t:"09:16", k:"ALL STOPS"}, {t:"10:16", k:"ALL STOPS"}, {t:"11:16", k:"ALL STOPS"}, {t:"12:16", k:"ALL STOPS"}, {t:"13:16", k:"ALL STOPS"}, {t:"14:21", k:"ALL STOPS"}, {t:"15:14", k:"ALL STOPS"}, {t:"16:16", k:"EXP via BAYSIDE"}, {t:"16:19", k:"ALL STOPS"}, {t:"17:04", k:"EXP via BAYSIDE"}, {t:"17:10", k:"ALL STOPS"}, {t:"17:50", k:"EXP via BAYSIDE"}, {t:"17:53", k:"ALL STOPS"}, {t:"18:25", k:"EXP via BAYSIDE"}, {t:"18:37", k:"ALL STOPS"}, {t:"19:09", k:"EXP via BAYSIDE, DOUGLASTON, LITTLE NECK"}, {t:"19:35", k:"EXP via BAYSIDE, DOUGLASTON, LITTLE NECK"}, {t:"20:16", k:"ALL STOPS"}, {t:"20:40", k:"ALL STOPS"}, {t:"21:18", k:"ALL STOPS"}, {t:"22:17", k:"ALL STOPS"}, {t:"22:45", k:"ALL STOPS"}, {t:"23:20", k:"ALL STOPS"}, {t:"23:45", k:"ALL STOPS"}];
+    // Dictionary mapping common LIRR terminal IDs to readable names
+    // You will need to expand this using your stops.txt file for all possible stations
+    const stopDict = {
+        "105": "Penn Station",
+        "14": "Babylon",
+        "144": "Port Washington",
+        "156": "Ronkonkoma",
+        "127": "Huntington",
+        "140": "Port Jefferson",
+        "84": "Hempstead",
+        "115": "Long Beach",
+        "133": "Oyster Bay",
+        "121": "Montauk",
+        "42": "Far Rockaway",
+        "173": "West Hempstead",
+        "102": "Jamaica"
+    };
 
-    const BOARD_ROWS = [
-        { type: 'lirr_static', grad: 'grad-bar-LIRR', name: 'LIRR Port Washington', desc: 'Departures @ NY Penn', displayLines: ['LIRR'] }
-    ];
+    // Dictionary for LIRR branch colors based on route_id
+    const branchColors = {
+        "1": { name: "Babylon Branch", color: "#00985F" },
+        "2": { name: "Hempstead Branch", color: "#CE8E00" },
+        "3": { name: "Oyster Bay Branch", color: "#00AF3F" },
+        "4": { name: "Ronkonkoma Branch", color: "#A626AA" },
+        "5": { name: "Montauk Branch", color: "#00B2A9" },
+        "6": { name: "Long Beach Branch", color: "#FF6319" },
+        "7": { name: "Far Rockaway Branch", color: "#6E3219" },
+        "8": { name: "West Hempstead Branch", color: "#00A1DE" },
+        "9": { name: "Port Washington Branch", color: "#C60C30" },
+        "10": { name: "Port Jefferson Branch", color: "#006EC7" }
+    };
 
-    function minsToTime(totalMins) {
-        let h = Math.floor(totalMins / 60); let m = totalMins % 60; let ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12; h = h ? h : 12; return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
-    }
+    const PENN_STATION_ID = "105"; 
+    const LIRR_FEED_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/lirr%2Fgtfs-lirr";
+    const CORS_PROXY = "https://corsproxy.io/?"; 
+    const PROTO_URL = "https://raw.githubusercontent.com/MobilityData/gtfs-realtime-bindings/master/gtfs-realtime.proto";
 
-    function getBulletHTML(route) {
-        return `<div class="bullet b-${route}">${route}</div>`;
-    }
+    async function fetchDepartures() {
+        try {
+            // 1. Load the GTFS-RT schema
+            const root = await protobuf.load(PROTO_URL);
+            const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
 
-    function renderLIRRCard(cfg) {
-        let now = new Date(); let currentMins = now.getHours() * 60 + now.getMinutes();
-        let departures = [];
-        
-        for (let item of LIRR_PW_SCHED) {
-            let [h, m] = item.t.split(':').map(Number); let schedMins = h * 60 + m;
-            if (schedMins > currentMins) { 
-                departures.push({ time: item.t, tag: item.k, rawMins: schedMins }); 
-                if (departures.length >= 4) break; 
-            }
+            // 2. Fetch the binary data via proxy
+            const response = await fetch(CORS_PROXY + encodeURIComponent(LIRR_FEED_URL));
+            if (!response.ok) throw new Error("Failed to fetch feed");
+            
+            const buffer = await response.arrayBuffer();
+            
+            // 3. Decode the protocol buffer
+            const message = FeedMessage.decode(new Uint8Array(buffer));
+            const feed = FeedMessage.toObject(message, { enums: String, longs: String, defaults: true });
+
+            let departures = [];
+
+            // 4. Parse the entities for Penn Station departures
+            feed.entity.forEach(entity => {
+                if (entity.tripUpdate && entity.tripUpdate.stopTimeUpdate) {
+                    const stops = entity.tripUpdate.stopTimeUpdate;
+                    
+                    // Find if this train stops at Penn Station
+                    const pennStop = stops.find(s => s.stopId === PENN_STATION_ID);
+                    
+                    if (pennStop && pennStop.departure && pennStop.departure.time) {
+                        // Exclude trains where Penn is the final stop (arrivals)
+                        const lastStop = stops[stops.length - 1];
+                        if (lastStop.stopId === PENN_STATION_ID) return;
+
+                        const routeId = entity.tripUpdate.trip.routeId;
+                        const destId = lastStop.stopId;
+                        const destName = stopDict[destId] || `Stop ${destId}`;
+                        
+                        departures.push({
+                            destName: destName,
+                            routeId: routeId,
+                            time: parseInt(pennStop.departure.time, 10),
+                            // Track info is notoriously tricky in MTA GTFS-RT without the NYCT extension, 
+                            // setting to TBD by default for static implementation
+                            track: "TBD" 
+                        });
+                    }
+                }
+            });
+
+            // 5. Sort by departure time
+            departures.sort((a, b) => a.time - b.time);
+            
+            // 6. Filter out past trains (allow 1 min buffer)
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            departures = departures.filter(d => d.time > nowSeconds - 60);
+
+            renderBoard(departures);
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('board').innerHTML = `<div class="status-msg" style="color: #ff3b30;">Data error. Check console.</div>`;
         }
-        
-        // Wrap around past midnight
-        if (departures.length === 0) { departures.push({ time: LIRR_PW_SCHED[0].t, tag: LIRR_PW_SCHED[0].k, rawMins: 999 }); }
-
-        let html = `<div class="card-header-inline no-scrollbar"><div class="header-text-group"><span class="header-inline-station">${cfg.name}</span></div><div class="header-icons-group">${getBulletHTML('LIRR')}</div></div>`;
-        html += `<div style="font-size: 0.7em; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 12px; padding-left: 2px;">${cfg.desc}</div>`;
-        html += `<div style="display: flex; flex-direction: column; justify-content: space-around; flex-grow: 1; padding: 5px 0;">`;
-        
-        departures.forEach(d => {
-            let formattedTime = minsToTime(d.rawMins === 999 ? parseInt(d.time.split(':')[0])*60 + parseInt(d.time.split(':')[1]) : d.rawMins);
-            let tagClass = d.tag === 'ALL STOPS' ? 'tag-lcl' : 'tag-exp';
-            html += `<div style="display:flex; align-items:center; gap: 15px; font-size: 1.25em; font-weight: 600; color: #e5e5ea; margin-bottom: 14px;">
-                        <span class="tag-lirr ${tagClass}" style="font-size: 0.7em; padding: 4px 10px; letter-spacing: 0.5px; min-width: 85px; text-align: center;">${d.tag}</span>
-                        <span>${formattedTime}</span>
-                     </div>`;
-        });
-        html += `</div>`;
-        
-        const card = document.createElement('div'); card.className = `transit-card ${cfg.grad}`; card.innerHTML = html; return card;
     }
 
-    function renderBoard() {
-        const container = document.getElementById('board'); container.innerHTML = ''; 
-        BOARD_ROWS.forEach(cfg => { container.appendChild(renderLIRRCard(cfg)); });
+    function renderBoard(departures) {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+
+        if (departures.length === 0) {
+            board.innerHTML = `<div class="status-msg">No upcoming departures found.</div>`;
+            return;
+        }
+
+        departures.forEach(d => {
+            let dateObj = new Date(d.time * 1000);
+            let formattedTime = dateObj.toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' });
+            
+            let branch = branchColors[d.routeId] || { name: "LIRR Train", color: "#4D5357" };
+            
+            // UI logic for Track assignment styling
+            let trackClass = d.track === "TBD" ? "track-info" : "track-info track-assigned";
+            let trackText = d.track === "TBD" ? "Track TBD" : `Trk ${d.track}`;
+
+            const card = document.createElement('div');
+            card.className = 'departure-card';
+            card.style.borderLeftColor = branch.color;
+
+            card.innerHTML = `
+                <div class="departure-left">
+                    <span class="dest-name">${d.destName}</span>
+                    <span class="branch-tag" style="color: ${branch.color}">${branch.name}</span>
+                </div>
+                <div class="departure-right">
+                    <span class="dep-time">${formattedTime}</span>
+                    <span class="${trackClass}">${trackText}</span>
+                </div>
+            `;
+            board.appendChild(card);
+        });
     }
 
     function updateClock() {
-        const now = new Date();
-        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
     }
+
+    // Initialize
+    setInterval(updateClock, 1000);
+    updateClock();
+    fetchDepartures();
     
-    setInterval(updateClock, 1000); updateClock(); renderBoard();
-    setInterval(renderBoard, 60000); // LIRR updates locally every 60s
+    // Refresh MTA data every 30 seconds
+    setInterval(fetchDepartures, 30000);
+
 </script>
 </body>
 </html>
