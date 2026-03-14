@@ -44,7 +44,7 @@
             font-size: 1.1em;
             font-weight: 700;
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             font-style: italic;
             /* STUA Purple Gradient */
             background: linear-gradient(90deg, #E0AAFF, #ffffff);
@@ -93,6 +93,16 @@
             -webkit-background-clip: text; 
             -webkit-text-fill-color: transparent;
         }
+        
+        .mobile-text {
+            font-size: 1.4em;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            /* Sleek Blue Gradient for the Mobile Button */
+            background: linear-gradient(90deg, #5AC8FA, #0a84ff);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
 
         .arrow-icon {
             color: #8e8e93;
@@ -106,6 +116,12 @@
     <div class="container">
         <div class="header-title">Transit Directory</div>
         <div class="header-subtitle">Stay on Schedule</div>
+
+        <!-- MOBILE REDIRECT BUTTON -->
+        <a href="mobile/index.html" class="nav-card">
+            <span class="mobile-text">📱 Use Mobile Site</span>
+            <span class="arrow-icon">›</span>
+        </a>
 
         <!-- RESIDENCES SECTION -->
         <div class="category-title">Residences</div>
