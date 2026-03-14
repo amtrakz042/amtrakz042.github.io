@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regional Rail Dispatch</title>
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #000000; 
+            --card-bg: #1c1c1e; 
+            --text-main: #ffffff; 
+            --text-dim: #8e8e93;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: var(--font-stack); 
+            margin: 0; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            box-sizing: border-box; 
+            overflow-x: hidden;
+        }
+
+        .header-container { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #333; 
+        }
+        
+        .header-container h1 { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px;}
+        .clock { color: var(--text-dim); font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 600;}
+
+        .scroll-container {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding-bottom: 30px;
+        }
+
+        .agency-header { 
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; 
+            display: flex; align-items: center; gap: 8px;
+        }
+        
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        .board { display: flex; flex-direction: column; gap: 10px; }
+        
+        .departure-row {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 6px solid #4D5357; /* Fallback color */
+        }
+
+        .departure-left { display: flex; flex-direction: column; gap: 2px; }
+        .dest-text { font-weight: 700; font-size: 1.2rem; }
+        .line-name { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .departure-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .dep-time { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .track-info { 
+            font-size: 0.8rem; font-weight: 600; 
+            color: #ff9f0a; 
+            background: rgba(255, 159, 10, 0.15); 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+        }
+
+        .status-msg { text-align: center; color: var(--text-dim); padding: 20px; font-style: italic; font-size: 0.9rem; background: var(--card-bg); border-radius: 12px;}
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>Regional Dispatch</h1>
+        <div class="clock" id="clock">--:--:--</div>
+    </div>
+
+    <div class="scroll-container">
+        <div>
+            <div class="agency-header"><span class="dot" style="background-color: #0039A6;"></span>LIRR @ NY Penn</div>
+            <div id="penn-board" class="board">
+                <div class="status-msg">Connecting to MTA feeds...</div>
+            </div>
+        </div>
+
+        <div>
+            <div class="agency-header"><span class="dot" style="background-color: #EE0034;"></span>Metro-North @ GCT</div>
+            <div id="mnr-board" class="board">
+                <div class="status-msg">Connecting to MTA feeds...</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const lirrStops = {
+        "237": "Penn Station", "14": "Babylon", "84": "Hempstead", "133": "Oyster Bay",
+        "156": "Ronkonkoma", "121": "Montauk", "115": "Long Beach", "42": "Far Rockaway",
+        "173": "West Hempstead", "144": "Port Washington", "140": "Port Jefferson", 
+        "127": "Huntington", "102": "Jamaica", "64": "Forest Hills", "68": "Great Neck", 
+        "11": "Belmont Park", "249": "Grand Central Madison"
+    };
+
+    const lirrRoutes = {
+        "1": { name: "Babylon Branch", color: "#00985F" },
+        "2": { name: "Hempstead Branch", color: "#CE8E00" },
+        "3": { name: "Oyster Bay Branch", color: "#00AF3F" },
+        "4": { name: "Ronkonkoma Branch", color: "#A626AA" },
+        "5": { name: "Montauk Branch", color: "#00B2A9" },
+        "6": { name: "Long Beach Branch", color: "#FF6319" },
+        "7": { name: "Far Rockaway Branch", color: "#6E3219" },
+        "8": { name: "West Hempstead Branch", color: "#00A1DE" },
+        "9": { name: "Port Washington Branch", color: "#C60C30" },
+        "10": { name: "Port Jefferson Branch", color: "#006EC7" },
+        "11": { name: "Belmont Park", color: "#60269E" },
+        "12": { name: "City Terminal Zone", color: "#4D5357" }
+    };
+
+    const mnrStops = {
+        "1": "Grand Central", "14": "Harlem-125 St", "59": "Stamford", "67": "New Haven", 
+        "116": "Croton-Harmon", "131": "Poughkeepsie", "148": "White Plains", 
+        "158": "Southeast", "104": "Yonkers", "39": "Mt Vernon East", "138": "Wassaic",
+        "83": "Danbury", "91": "Waterbury"
+    };
+
+    // Standard Metro-North Route approximations
+    const mnrRoutes = {
+        "1": { name: "Hudson Line", color: "#009B3A" },
+        "2": { name: "Harlem Line", color: "#0039A6" },
+        "3": { name: "New Haven Line", color: "#EE0034" },
+        "4": { name: "Danbury Branch", color: "#EE0034" },
+        "5": { name: "Waterbury Branch", color: "#EE0034" },
+        "6": { name: "Wassaic Branch", color: "#0039A6" }
+    };
+
+    const FEED_URLS = {
+        LIRR: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/lirr%2Fgtfs-lirr",
+        MNR: "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/mnr%2Fgtfs-mnr"
+    };
+
+    const PROXIES = [
+        "https://api.allorigins.win/raw?url=",
+        "https://corsproxy.io/?"
+    ];
+
+    const PROTO_URL = "https://raw.githubusercontent.com/google/transit/master/gtfs-realtime/proto/gtfs-realtime.proto";
+    let FeedMessage = null;
+
+    async function init() {
+        try {
+            const root = await protobuf.load(PROTO_URL);
+            FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+            fetchAllData();
+            setInterval(fetchAllData, 30000); 
+        } catch (e) {
+            console.error(e);
+            showError("penn-board", "Failed to load GTFS schema.");
+            showError("mnr-board", "Failed to load GTFS schema.");
+        }
+    }
+
+    async function fetchWithFallback(targetUrl) {
+        for (let proxy of PROXIES) {
+            try {
+                const res = await fetch(proxy + encodeURIComponent(targetUrl));
+                if (res.ok) return await res.arrayBuffer();
+            } catch (e) {
+                console.warn(`Proxy ${proxy} failed, trying next...`);
+            }
+        }
+        throw new Error("All CORS proxies failed.");
+    }
+
+    async function fetchAllData() {
+        try {
+            const lirrBuffer = await fetchWithFallback(FEED_URLS.LIRR);
+            const lirrMessage = FeedMessage.decode(new Uint8Array(lirrBuffer));
+            const lirrFeed = FeedMessage.toObject(lirrMessage, { enums: String, longs: String, defaults: true });
+            processAgencyFeed(lirrFeed, "237", lirrStops, lirrRoutes, "penn-board", 15);
+        } catch (e) {
+            console.error("LIRR Fetch Error:", e);
+            showError("penn-board", "Network error updating feed.");
+        }
+
+        try {
+            const mnrBuffer = await fetchWithFallback(FEED_URLS.MNR);
+            const mnrMessage = FeedMessage.decode(new Uint8Array(mnrBuffer));
+            const mnrFeed = FeedMessage.toObject(mnrMessage, { enums: String, longs: String, defaults: true });
+            processAgencyFeed(mnrFeed, "1", mnrStops, mnrRoutes, "mnr-board", 8);
+        } catch (e) {
+            console.error("MNR Fetch Error:", e);
+            showError("mnr-board", "Network error updating feed.");
+        }
+    }
+
+    function processAgencyFeed(feed, targetStopId, stopDict, routeDict, containerId, limit) {
+        let departures = [];
+        const nowSeconds = Math.floor(Date.now() / 1000);
+
+        feed.entity.forEach(entity => {
+            if (entity.tripUpdate && entity.tripUpdate.stopTimeUpdate) {
+                const stops = entity.tripUpdate.stopTimeUpdate;
+                const targetStop = stops.find(s => s.stopId === targetStopId);
+                
+                if (targetStop && targetStop.departure && targetStop.departure.time) {
+                    const lastStop = stops[stops.length - 1];
+                    if (lastStop.stopId === targetStopId) return; // Arrival only
+
+                    const routeId = entity.tripUpdate.trip.routeId;
+                    const destId = lastStop.stopId;
+                    const destName = stopDict[destId] || `Stop ${destId}`;
+                    const depTime = parseInt(targetStop.departure.time, 10);
+                    const routeInfo = routeDict[routeId] || { name: "Commuter Rail", color: "#4D5357" };
+
+                    if (depTime > nowSeconds - 60) {
+                        departures.push({ 
+                            dest: destName, 
+                            time: depTime, 
+                            lineName: routeInfo.name, 
+                            color: routeInfo.color 
+                        });
+                    }
+                }
+            }
+        });
+
+        departures.sort((a, b) => a.time - b.time);
+        renderBoard(departures.slice(0, limit), containerId); 
+    }
+
+    function renderBoard(departures, containerId) {
+        const board = document.getElementById(containerId);
+        board.innerHTML = '';
+
+        if (departures.length === 0) {
+            board.innerHTML = `<div class="status-msg">No upcoming departures found.</div>`;
+            return;
+        }
+
+        departures.forEach(d => {
+            let dateObj = new Date(d.time * 1000);
+            let formattedTime = dateObj.toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' });
+
+            const card = document.createElement('div');
+            card.className = `departure-row`;
+            card.style.borderLeftColor = d.color;
+
+            card.innerHTML = `
+                <div class="departure-left">
+                    <span class="dest-text">${d.dest}</span>
+                    <span class="line-name" style="color: ${d.color};">${d.lineName}</span>
+                </div>
+                <div class="departure-right">
+                    <span class="dep-time">${formattedTime}</span>
+                    <span class="track-info">Track TBD</span>
+                </div>
+            `;
+            board.appendChild(card);
+        });
+    }
+
+    function showError(containerId, msg) {
+        document.getElementById(containerId).innerHTML = `<div class="status-msg" style="color: #ff9f0a;">${msg}</div>`;
+    }
+
+    function updateClock() {
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
+    }
+
+    setInterval(updateClock, 1000); 
+    updateClock();
+    init();
+
+</script>
+</body>
+</html>
