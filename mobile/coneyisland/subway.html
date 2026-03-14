@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stillwell Subway Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.2.4/dist/protobuf.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #000000; --card-bg: #1c1c1e; --text-main: #ffffff; --text-dim: #8e8e93;
+            --accent-green: #30d158; --accent-blue: #0a84ff; --accent-warn: #ff9f0a;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: var(--font-stack); margin: 0; padding: 12px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #333; flex-shrink: 0; }
+        .back-btn { color: var(--accent-blue); text-decoration: none; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .header-right { font-family: var(--font-stack); font-weight: 700; font-size: 1.1em; background: linear-gradient(180deg, #FCCC0A, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .board-grid { display: flex; flex-direction: column; gap: 15px; flex-grow: 1; overflow-y: auto; padding-bottom: 20px; }
+
+        .transit-card { background-color: var(--card-bg); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: flex-start; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        .transit-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; z-index: 10; }
+
+        .grad-bar-orange::before { background: linear-gradient(180deg, #FF6319, #993b0f); }
+        .grad-bar-yellow::before { background: linear-gradient(180deg, #FCCC0A, #b39200); }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .card-header-inline { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 10px; flex-shrink: 0; overflow-x: auto; white-space: nowrap; gap: 10px; }
+        .header-text-group { display: flex; align-items: center; font-size: 1.15em; font-weight: 700; color: #fff; white-space: nowrap; flex-shrink: 0; }
+        .header-icons-group { display: flex; gap: 5px; flex-shrink: 0; }
+        .header-inline-station { margin-right: 8px; }
+        .direction-tag { font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 6px; }
+        .dir-downtown { color: var(--accent-green); } .dir-uptown { color: var(--accent-blue); }
+
+        .train-main-info { display: flex; align-items: center; gap: 12px; }
+
+        .next-up-block { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; }
+        .next-up-chips-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end;}
+
+        .conn-block { margin-top: 10px; width: 100%; display: flex; flex-direction: column; padding-bottom: 2px; }
+        .conn-label-block { display: block; margin-bottom: 6px; }
+        .conn-chips-row { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; }
+
+        .time-large { font-size: 2em; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+        .time-sub { font-size: 0.7em; color: var(--text-dim); font-weight: 500; margin-left: 2px; }
+        .time-warn { color: var(--accent-warn); }
+        .chip-time-err { color: #ff453a; font-style: italic; font-weight: normal; }
+
+        .conn-label { font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+        
+        .grad-cold { background: linear-gradient(45deg, #5AC8FA, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-blue { background: linear-gradient(90deg, #0a84ff 0%, #0a84ff 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-green { background: linear-gradient(90deg, #30d158 0%, #30d158 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-yellow { background: linear-gradient(90deg, #FCCC0A 0%, #FCCC0A 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-text-orange { background: linear-gradient(90deg, #FF6319 0%, #FF6319 25%, #ffffff 85%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .grad-following { background: linear-gradient(90deg, #FFD700 0%, #FCCC0A 30%, #FFF8E7 70%, #FFFFFF 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; }
+
+        .chip { background: #333; padding: 2px 8px; border-radius: 6px; display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.85em; flex-shrink: 0; }
+        .chip-time-pos { color: var(--accent-green); } .chip-time-warn { color: #ff9f0a; }
+
+        .bullet { display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; border-radius: 50%; }
+        .b-main { width: 36px; height: 36px; font-size: 18px; } 
+        .b-lg { width: 24px; height: 24px; font-size: 13px; opacity: 0.8; }
+        .b-sm { width: 18px; height: 18px; font-size: 10px; }
+
+        .b-2, .b-3 { background-color: #EE352E; }
+        .b-4, .b-5 { background-color: #00933C; }
+        .b-A, .b-C, .b-E { background-color: #0039A6; }
+        .b-B, .b-D, .b-F, .b-M { background-color: #FF6319; }
+        .b-N, .b-Q, .b-R, .b-W { background-color: #FCCC0A; color: black !important; }
+        .b-G { background-color: #6CBE45; }
+        
+        .error-msg { color: #ff453a; font-size: 0.85em; font-weight: bold; } .dim { opacity: 0.5; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <a href="index.html" class="back-btn">‹ Lines</a>
+        <div class="header-right" id="clock">00:00 AM</div>
+    </div>
+
+    <div class="board-grid" id="board">
+        <div style="text-align: center; padding: 40px; color: #666;">Initialize System...</div>
+    </div>
+
+<script>
+    const PROXIES = ['', 'https://corsproxy.io/?', 'https://api.codetabs.com/v1/proxy?quest='];
+    
+    const FEEDS = {
+        'BDFM': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm',
+        'NQRW': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw',
+        'IRT': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs',
+        'ACE': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace',
+        'G': 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g'
+    };
+
+    // =========================================================================
+    // MOBILE LAYOUT CONFIGURATION
+    // =========================================================================
+    const BOARD_ROWS = [
+        { type: 'single_view', grad: 'grad-bar-orange', name: 'Coney Island-Stillwell Av', displayLines: ['F'], filterLines: ['F'], stopIds: ['X25N', 'F39N', 'D43N'], feed: 'BDFM', desc: 'Culver Line', dir: 'uptown', connType: 'F_JaySt', threshold: 4 },
+        { type: 'single_view', grad: 'grad-bar-yellow', name: 'Coney Island-Stillwell Av', displayLines: ['Q'], filterLines: ['Q'], stopIds: ['D43N'], feed: 'NQRW', desc: 'Brighton Line', dir: 'uptown', connType: 'Q_Brighton_B', threshold: 4 },
+        { type: 'single_view', grad: 'grad-bar-yellow', name: 'Coney Island-Stillwell Av', displayLines: ['N'], filterLines: ['N'], stopIds: ['D43N'], feed: 'NQRW', desc: 'Sea Beach Line', dir: 'uptown', connType: 'D_N_Atlantic', threshold: 4 },
+        { type: 'single_view', grad: 'grad-bar-orange', name: 'Coney Island-Stillwell Av', displayLines: ['D'], filterLines: ['D'], stopIds: ['D43N'], feed: 'BDFM', desc: 'West End Line', dir: 'uptown', connType: 'D_N_Atlantic', threshold: 4 }
+    ];
+
+    let globalData = { 'BDFM': [], 'NQRW': [], 'IRT': [], 'ACE': [], 'G': [] };
+    let feedStatus = { 'BDFM': false, 'NQRW': false, 'IRT': false, 'ACE': false, 'G': false };
+
+    const protoJSON = { "nested": { "transit_realtime": { "nested": { "FeedMessage": { "fields": { "header": { "type": "FeedHeader", "id": 1 }, "entity": { "rule": "repeated", "type": "FeedEntity", "id": 2 } } }, "FeedHeader": { "fields": { "gtfsRealtimeVersion": { "type": "string", "id": 1 }, "incrementality": { "type": "int32", "id": 2 }, "timestamp": { "type": "uint64", "id": 3 } } }, "FeedEntity": { "fields": { "id": { "type": "string", "id": 1 }, "isDeleted": { "type": "bool", "id": 2 }, "tripUpdate": { "type": "TripUpdate", "id": 3 } } }, "TripUpdate": { "fields": { "trip": { "type": "TripDescriptor", "id": 1 }, "stopTimeUpdate": { "rule": "repeated", "type": "StopTimeUpdate", "id": 2 } } }, "TripDescriptor": { "fields": { "tripId": { "type": "string", "id": 1 }, "routeId": { "type": "string", "id": 5 } } }, "StopTimeUpdate": { "fields": { "stopSequence": { "type": "uint32", "id": 1 }, "stopId": { "type": "string", "id": 4 }, "arrival": { "type": "StopTimeEvent", "id": 2 }, "departure": { "type": "StopTimeEvent", "id": 3 } } }, "StopTimeEvent": { "fields": { "delay": { "type": "int32", "id": 1 }, "time": { "type": "int64", "id": 2 }, "uncertainty": { "type": "int32", "id": 3 } } } } } } };
+
+    async function fetchWithProxy(url) {
+        for (let proxy of PROXIES) {
+            try {
+                let targetUrl = proxy ? proxy + (proxy.includes('corsproxy') ? encodeURIComponent(url) : url) : url;
+                const response = await fetch(targetUrl, { cache: 'no-store' });
+                if (response.ok) return await response.arrayBuffer();
+            } catch (e) {}
+        }
+        throw new Error("All network paths blocked");
+    }
+
+    async function init() {
+        const root = protobuf.Root.fromJSON(protoJSON);
+        const FeedMessage = root.lookupType("transit_realtime.FeedMessage");
+        await fetchAllFeeds(FeedMessage);
+        renderBoard();
+        setInterval(async () => { await fetchAllFeeds(FeedMessage); renderBoard(); }, 15000);
+    }
+
+    async function fetchAllFeeds(FeedMessage) {
+        const promises = Object.keys(FEEDS).map(async (key) => {
+            try {
+                const buffer = await fetchWithProxy(FEEDS[key] + '?t=' + Date.now());
+                const message = FeedMessage.decode(new Uint8Array(buffer));
+                globalData[key] = FeedMessage.toObject(message, { longs: String }).entity.filter(e => e.tripUpdate).map(e => e.tripUpdate);
+                feedStatus[key] = true;
+            } catch (err) { feedStatus[key] = false; }
+        });
+        await Promise.all(promises);
+    }
+
+    function getArrivals(feedKeys, stopIds, filterRoutes) {
+        if (!Array.isArray(feedKeys)) feedKeys = [feedKeys];
+        if (!Array.isArray(stopIds)) stopIds = [stopIds];
+        let arrivals = []; let seenTrips = new Set(); const now = Date.now() / 1000;
+        
+        feedKeys.forEach(feedKey => {
+            if (!feedStatus[feedKey]) return;
+            globalData[feedKey].forEach(trip => {
+                const route = trip.trip.routeId;
+                if (filterRoutes && !filterRoutes.includes(route)) return;
+                if (trip.stopTimeUpdate) {
+                    trip.stopTimeUpdate.forEach(stu => {
+                        if (stopIds.includes(stu.stopId)) {
+                            let time = stu.arrival?.time ? parseInt(stu.arrival.time) : (stu.departure?.time ? parseInt(stu.departure.time) : null);
+                            if (time && time > now) {
+                                if (!seenTrips.has(trip.trip.tripId)) {
+                                    seenTrips.add(trip.trip.tripId);
+                                    arrivals.push({ route: route, time: time, minutes: Math.floor((time - now) / 60), tripId: trip.trip.tripId });
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        return arrivals.sort((a, b) => a.time - b.time);
+    }
+
+    function getHubArrivalTime(feedKey, tripId, hubStopId) {
+        const trip = globalData[feedKey].find(t => t.trip.tripId === tripId);
+        if (trip && trip.stopTimeUpdate) {
+            const stopUpdate = trip.stopTimeUpdate.find(s => s.stopId === hubStopId);
+            if (stopUpdate && stopUpdate.arrival) return parseInt(stopUpdate.arrival.time);
+        }
+        return null;
+    }
+
+    function findNextForRoute(feedKey, stopId, route, cutoffTime) {
+        if (!feedStatus[feedKey]) return null;
+        let candidates = [];
+        globalData[feedKey].forEach(trip => {
+            if (trip.trip.routeId !== route) return;
+            if (trip.stopTimeUpdate) {
+                trip.stopTimeUpdate.forEach(stu => {
+                    if (stu.stopId === stopId && stu.departure?.time) {
+                        const depTime = parseInt(stu.departure.time);
+                        if (depTime > cutoffTime) candidates.push({ route: route, time: depTime, wait: Math.floor((depTime - cutoffTime) / 60) + 1, tripId: trip.trip.tripId });
+                    }
+                });
+            }
+        });
+        candidates.sort((a, b) => a.time - b.time);
+        return candidates.length > 0 ? candidates[0] : null;
+    }
+
+    function findTrainsForRoute(feedKey, stopId, route, cutoffTime) {
+        if (!feedStatus[feedKey]) return [];
+        let candidates = [];
+        globalData[feedKey].forEach(trip => {
+            if (trip.trip.routeId !== route) return;
+            if (trip.stopTimeUpdate) {
+                trip.stopTimeUpdate.forEach(stu => {
+                    if (stu.stopId === stopId && stu.departure?.time) {
+                        const depTime = parseInt(stu.departure.time);
+                        if (depTime > cutoffTime) candidates.push({ route: route, time: depTime, wait: Math.floor((depTime - cutoffTime) / 60) + 1, tripId: trip.trip.tripId });
+                    }
+                });
+            }
+        });
+        candidates.sort((a, b) => a.time - b.time);
+        return candidates;
+    }
+
+    function getComplexConnections(type, train) {
+        let conns = [];
+        const arrivalTimeUnix = train.time;
+
+        if (type === 'D_N_Atlantic') {
+            let feed = train.route === 'D' ? 'BDFM' : 'NQRW';
+            let atlanticArrival = getHubArrivalTime(feed, train.tripId, 'R31N') || getHubArrivalTime(feed, train.tripId, 'D24N') || (arrivalTimeUnix + 2100); 
+
+            ['2','3','4','5'].forEach(rt => {
+                let t = findNextForRoute('IRT', '235N', rt, atlanticArrival + 60); 
+                if(t) { t.wait = Math.floor((t.time - atlanticArrival)/60); conns.push(t); }
+            });
+            ['R','W'].forEach(rt => {
+                let t = findNextForRoute('NQRW', 'R31N', rt, atlanticArrival + 60); 
+                if(t) { t.wait = Math.floor((t.time - atlanticArrival)/60); conns.push(t); }
+            });
+        } 
+        else if (type === 'F_JaySt') {
+            let churchArrival = getHubArrivalTime('BDFM', train.tripId, 'F27N') || (arrivalTimeUnix + 900); 
+            let jayArrival = getHubArrivalTime('BDFM', train.tripId, 'A41N') || (arrivalTimeUnix + 1800); 
+
+            let gTrain = findNextForRoute('G', 'F27N', 'G', churchArrival + 60);
+            if (gTrain) { gTrain.wait = Math.floor((gTrain.time - churchArrival) / 60); gTrain.customText = `Church: G +${gTrain.wait}m`; conns.push(gTrain); }
+
+            ['A', 'C'].forEach(rt => {
+                let t = findNextForRoute('ACE', 'A41N', rt, jayArrival + 60);
+                if (t) { 
+                    t.wait = Math.floor((t.time - jayArrival) / 60); 
+                    t.customHTML = true;
+                    t.displayHTML = `<div style="display:flex; align-items:center; gap:2px;">
+                                        ${getBulletHTML(rt, 'b-sm')} <span class="${t.wait < 3 ? 'chip-time-warn' : 'chip-time-pos'}" style="margin: 0 2px;">+${t.wait}m</span>
+                                     </div>`;
+                    conns.push(t); 
+                }
+            });
+        } 
+        else if (type === 'Q_Brighton_B') {
+            let brightonArrival = getHubArrivalTime('NQRW', train.tripId, 'D35N') || (arrivalTimeUnix + 300); 
+            let bTrains = findTrainsForRoute('BDFM', 'D35N', 'B', brightonArrival + 60);
+
+            if (bTrains.length === 0) {
+                conns.push({ isError: true, customText: 'No B at this time' });
+            } else {
+                let bTrain = bTrains[0];
+                bTrain.wait = Math.floor((bTrain.time - brightonArrival) / 60);
+                
+                // Sub-chain: DeKalb R
+                let dekalbArrival = getHubArrivalTime('BDFM', bTrain.tripId, 'R30N') || (bTrain.time + 1500); 
+                let rTrain = findNextForRoute('NQRW', 'R30N', 'R', dekalbArrival + 60);
+                let rWait = rTrain ? Math.floor((rTrain.time - dekalbArrival) / 60) : null;
+
+                bTrain.customHTML = true;
+                bTrain.displayHTML = `<div style="display:flex; align-items:center; gap:2px;">
+                                        ${getBulletHTML('B', 'b-sm')} <span class="${bTrain.wait < 3 ? 'chip-time-warn' : 'chip-time-pos'}">+${bTrain.wait}m</span>
+                                        ${rTrain ? `<span class="dim" style="font-size:0.8em; margin: 0 2px;">➔</span> ${getBulletHTML('R', 'b-sm')} <span class="${rWait < 3 ? 'chip-time-warn' : 'chip-time-pos'}" style="margin: 0 2px;">+${rWait}m</span>` : ''}
+                                      </div>`;
+                conns.push(bTrain);
+            }
+        }
+        return conns.sort((a, b) => (a.time || 9999999999) - (b.time || 9999999999));
+    }
+
+    function getBulletHTML(route, sizeClass) {
+        return `<div class="bullet ${sizeClass} b-${route}">${route}</div>`;
+    }
+
+    function getLineColorClass(lines) {
+        if (!lines) return 'grad-cold'; const s = new Set(Array.isArray(lines) ? lines : [lines]);
+        if (s.has('B') || s.has('D') || s.has('F') || s.has('M')) return 'grad-text-orange';
+        if (s.has('N') || s.has('Q') || s.has('R') || s.has('W')) return 'grad-text-yellow';
+        return 'grad-cold';
+    }
+
+    function getConnectionsHTMLBlock(train, cfg) {
+        if (!cfg.connType || cfg.connType === 'None') return '';
+        let conns = [], label = ""; let gradClass = getLineColorClass(cfg.displayLines || cfg.lines);
+
+        if (cfg.connType === 'D_N_Atlantic') {
+            label = "Manhattan Transfers @ Atlantic Av"; conns = getComplexConnections('D_N_Atlantic', train);
+        } else if (cfg.connType === 'F_JaySt') {
+            label = "Manhattan Transfers @ Church / Jay"; conns = getComplexConnections('F_JaySt', train);
+        } else if (cfg.connType === 'Q_Brighton_B') {
+            label = "Express Transfers @ Brighton / DeKalb"; conns = getComplexConnections('Q_Brighton_B', train);
+        }
+
+        let html = `<div class="conn-block"><span class="conn-label ${gradClass} conn-label-block">${label}</span>`;
+        if (conns.length > 0) {
+            html += `<div class="conn-chips-row no-scrollbar">`;
+            conns.forEach(c => {
+                if (c.isError) {
+                    html += `<span class="dim chip-time-err" style="font-size:0.75em; margin-top:2px;">${c.customText}</span>`;
+                } else if (c.customHTML) {
+                    html += `<div class="chip" style="padding:2px 6px;">${c.displayHTML}</div>`;
+                } else {
+                    let timeDisplay = c.customText ? `<span class="chip-time-pos">${c.customText}</span>` : `<span class="${c.wait < 3 ? 'chip-time-warn' : 'chip-time-pos'}">+${c.wait}m</span>`;
+                    let bullet = c.customText ? '' : getBulletHTML(c.route, 'b-sm');
+                    html += `<div class="chip">${bullet}<span style="font-size:0.8em">${timeDisplay}</span></div>`;
+                }
+            });
+            html += `</div>`;
+        } else {
+            html += `<span class="dim" style="font-size:0.7em">No connections shown at this time</span>`;
+        }
+        return html + `</div>`;
+    }
+
+    function renderNextUpBlock(arrivals) {
+        let html = `<div class="next-up-block"><span class="conn-label grad-following" style="font-size: 0.65em; margin-bottom:3px;">NEXT UP</span><div class="next-up-chips-row">`;
+        arrivals.forEach(n => html += `<div class="chip" style="padding:2px 6px;">${getBulletHTML(n.route, 'b-sm')}<span class="next-time">${n.minutes}m</span></div>`);
+        return html + `</div></div>`;
+    }
+
+    function renderInlineHeader(cfg) {
+        let dirIcon = cfg.dir === 'downtown' ? '↓' : '↑'; let dirClass = cfg.dir === 'downtown' ? 'dir-downtown' : 'dir-uptown';
+        let icons = (cfg.displayLines || []).map(l => getBulletHTML(l, 'b-lg')).join('');
+        return `<div class="card-header-inline no-scrollbar"><div class="header-text-group"><span class="header-inline-station">${cfg.name}</span>${cfg.desc ? `<span class="direction-tag ${dirClass}" style="margin-left: 6px;">${dirIcon} ${cfg.desc}</span>` : ''}</div><div class="header-icons-group">${icons}</div></div>`;
+    }
+
+    // THE FULL WIDTH SINGLE RENDERER
+    function renderSingleCard(cfg) {
+        const card = document.createElement('div'); card.className = `transit-card ${cfg.grad}`;
+        let html = renderInlineHeader(cfg);
+        let isFeedDown = Array.isArray(cfg.feed) ? cfg.feed.every(f => !feedStatus[f]) : !feedStatus[cfg.feed];
+        let arrivals = getArrivals(cfg.feed, cfg.stopIds || cfg.stopId, cfg.filterLines).filter(t => t.minutes >= cfg.threshold);
+        
+        if (isFeedDown) { html += `<div class="dim error-msg" style="margin-top:15px;">⚠️ Feed Offline</div>`; } 
+        else if (arrivals.length === 0) { html += `<div class="dim" style="margin-top:15px;">No upcoming trains</div>`; } 
+        else {
+            const first = arrivals[0]; 
+            const nextUp = arrivals.slice(1, 4); 
+            
+            html += `<div style="display:flex; justify-content: space-between; align-items: center; margin: 10px 0;">`;
+            let timeHTML1 = first.minutes === cfg.threshold ? `<span class="time-large time-warn">${first.minutes}</span> <span class="time-sub time-warn">min</span>` : `<span class="time-large">${first.minutes}</span> <span class="time-sub">min</span>`;
+            html += `<div class="train-main-info" style="margin:0;">${getBulletHTML(first.route, 'b-main')}${timeHTML1}</div>`;
+            
+            if (nextUp.length > 0) html += renderNextUpBlock(nextUp);
+            
+            html += `</div>`;
+            html += getConnectionsHTMLBlock(first, cfg);
+        }
+        card.innerHTML = html; return card;
+    }
+
+    function renderBoard() {
+        const container = document.getElementById('board'); container.innerHTML = ''; 
+        BOARD_ROWS.forEach(cfg => { container.appendChild(renderSingleCard(cfg)); });
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: true });
+    }
+    setInterval(updateClock, 1000); updateClock(); init();
+</script>
+</body>
+</html>
