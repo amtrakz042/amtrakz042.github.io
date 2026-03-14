@@ -403,7 +403,7 @@
 
     function updateClock() {
         const now = new Date();
-        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: true });
     }
     setInterval(updateClock, 1000); updateClock(); init();
 </script>
